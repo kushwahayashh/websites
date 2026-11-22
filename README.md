@@ -1,4 +1,4 @@
-# websites
+# tastehub
 
 A collection of small, hand-built websites. Each site lives in its own folder as a self-contained static page: no build step, no dependencies. Open its `index.html` in a browser and it runs.
 
