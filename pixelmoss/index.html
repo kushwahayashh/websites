@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixelmoss: small worlds, made by hand</title>
+<meta name="description" content="Pixelmoss is a two-person indie studio making small, quiet pixel art games.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Silkscreen&display=swap" rel="stylesheet">
+<link rel="icon" id="favicon" href="data:,">
+<style>
+  :root {
+    --bg: #f5f2ea;
+    --paper: #fbfaf6;
+    --ink: #1b1a17;
+    --muted: #77715f;
+    --line: #e3ded1;
+    --soil: #ece4d0;
+    --accent: #e2553f;
+    --moss: #7fae5a;
+    --notch: polygon(0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px));
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--ink); color: var(--paper); }
+  a { color: inherit; }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .px { font-family: "Silkscreen", monospace; font-weight: 400; letter-spacing: 0.01em; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+  em { font-style: normal; color: var(--accent); }
+
+  /* nav */
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 28px 0; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 18px; }
+  .logo canvas { width: 24px; height: 24px; }
+  .links { display: flex; gap: 28px; list-style: none; font-size: 13px; }
+  .links a { text-decoration: none; opacity: 0.72; }
+  .links a:hover { opacity: 1; }
+
+  /* fullscreen world */
+  .world { position: relative; height: 100vh; height: 100svh; min-height: 580px; overflow: hidden; color: var(--ink); transition: color 1.1s ease-in-out; }
+  .world h1, .world .links a {
+    text-shadow: -2px 0 0 rgba(42, 36, 64, 0), 2px 0 0 rgba(42, 36, 64, 0), 0 -2px 0 rgba(42, 36, 64, 0), 0 2px 0 rgba(42, 36, 64, 0), 4px 4px 0 rgba(42, 36, 64, 0);
+    transition: text-shadow 1.1s ease-in-out;
+  }
+  .world h1 em { transition: color 1.1s ease-in-out; }
+  .world.night { color: var(--paper); }
+  .world.night h1, .world.night .links a {
+    text-shadow: -2px 0 0 rgba(42, 36, 64, 0), 2px 0 0 rgba(42, 36, 64, 0), 0 -2px 0 rgba(42, 36, 64, 0), 0 2px 0 rgba(42, 36, 64, 0), 4px 4px 0 #15162f;
+  }
+  .world.night .links a { opacity: 0.85; }
+  .world.night .links a:hover { opacity: 1; }
+  .world.night h1 em { color: #f2c66d; }
+  #world { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .world .wrap { position: relative; height: 100%; display: flex; flex-direction: column; }
+  .copy { padding-top: 8vh; max-width: 40rem; }
+  .world h1 { font-size: clamp(2.4rem, 6.2vw, 4.8rem); line-height: 1.02; margin-bottom: 28px; }
+  .bar { margin-top: auto; padding-bottom: 26px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .chip {
+    font-family: "Silkscreen", monospace; font-size: 11px; line-height: 1;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--paper); color: var(--ink); border: 2px solid var(--ink);
+    padding: 8px 11px; box-shadow: 3px 3px 0 var(--ink); text-decoration: none; cursor: pointer;
+  }
+  .chip:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+  .chip .arrow { display: inline-block; animation: nudge 1s steps(2) infinite; }
+  @keyframes nudge { 50% { transform: translateY(3px); } }
+  .chip .sw { width: 8px; height: 8px; background: #f2c66d; box-shadow: 0 0 0 2px var(--ink); }
+  .night .chip .sw { background: #f4f1dc; box-shadow: 0 0 0 2px var(--ink), inset -3px 0 0 #9a98c4; }
+
+  .btn {
+    font-family: "Silkscreen", monospace; font-size: 14px;
+    display: inline-block; padding: 13px 20px;
+    background: var(--ink); color: var(--paper); text-decoration: none; border: 0; cursor: pointer;
+    box-shadow: 4px 4px 0 var(--accent);
+  }
+  .btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--accent); }
+  .btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--accent); }
+
+  /* sections */
+  section { padding: 112px 0 0; }
+  .label { font-size: 12px; color: var(--muted); margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+  .label::before { content: ""; width: 8px; height: 8px; background: var(--accent); }
+
+  /* games: windows into each world */
+  .games { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .game { position: relative; display: block; text-decoration: none; clip-path: var(--notch); overflow: hidden; background: var(--line); }
+  .game canvas { width: 100%; aspect-ratio: 48 / 30; object-fit: cover; transition: transform 0.3s steps(3); }
+  .game.wide { grid-column: 1 / -1; }
+  .game.wide canvas { aspect-ratio: 2.4 / 1; }
+  .game:hover canvas { transform: scale(1.04); }
+  .game h3 {
+    position: absolute; left: 16px; bottom: 16px;
+    font-size: clamp(14px, 1.8vw, 20px); line-height: 1;
+    background: var(--paper); border: 2px solid var(--ink); padding: 9px 12px;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .game:hover h3 { box-shadow: 3px 3px 0 var(--accent); }
+  .tag { position: absolute; top: 14px; right: 14px; font-size: 10px; line-height: 1; padding: 6px 8px; background: var(--ink); color: var(--paper); }
+  .tag.soon { background: var(--accent); }
+
+  /* studio: one line, three numbers */
+  .studio { display: flex; justify-content: space-between; align-items: flex-end; gap: 48px; flex-wrap: wrap; }
+  .studio h2 { font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.05; }
+  .stats { list-style: none; display: flex; gap: 48px; }
+  .stats li { display: flex; flex-direction: column; }
+  .stats .n { font-size: 40px; line-height: 1; }
+  .stats .k { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  /* footer: the ground Sprig sleeps on */
+  footer { margin-top: 96px; }
+  #ground { width: 100%; height: 200px; }
+  .soil { background: var(--soil); margin-top: -1px; padding: 28px 0 32px; }
+  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; flex-wrap: wrap; }
+  .sign > p { font-size: 16px; margin-bottom: 14px; }
+  form { display: flex; gap: 12px; width: min(420px, 100%); }
+  input {
+    flex: 1; min-width: 0; font: inherit; font-size: 15px; padding: 11px 14px;
+    background: var(--paper); border: 2px solid var(--ink); color: var(--ink); outline: none;
+  }
+  input:focus { box-shadow: 4px 4px 0 var(--moss); }
+  .thanks { font-size: 13px; color: #4f7a35; display: none; }
+  .out { list-style: none; display: flex; gap: 24px; font-size: 13px; }
+  .out a { text-decoration: none; border-bottom: 2px solid transparent; }
+  .out a:hover { border-color: var(--ink); }
+  .fine { margin-top: 28px; padding-top: 18px; border-top: 2px dashed rgba(27, 26, 23, 0.14); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 10px; color: var(--muted); }
+  .fine a { text-decoration: none; }
+  .fine a:hover { color: var(--ink); }
+
+  /* pixel cursors */
+  html, body { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2238%22%20shape-rendering%3D%22crispEdges%22%3E%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2236%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2236%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3C/svg%3E") 0 0, auto; }
+  a, button, label, summary, .chip, .btn, .game { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2232%22%20height%3D%2236%22%20shape-rendering%3D%22crispEdges%22%3E%3Crect%20x%3D%228%22%20y%3D%220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2210%22%20y%3D%220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2214%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2216%22%20y%3D%228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2210%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2212%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%224%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2228%22%20y%3D%2214%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2228%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2230%22%20y%3D%2216%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%220%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%224%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2228%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2230%22%20y%3D%2218%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%222%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%224%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%226%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2228%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2230%22%20y%3D%2220%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%224%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2228%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2230%22%20y%3D%2222%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%224%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%228%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2228%22%20y%3D%2224%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2228%22%20y%3D%2226%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%226%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2228%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2230%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%23fbfaf6%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2232%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%228%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2210%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2216%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2218%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2220%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2222%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2224%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2234%22%20width%3D%222%22%20height%3D%222%22%20fill%3D%22%231b1a17%22/%3E%3C/svg%3E") 9 0, pointer; }
+  input, textarea { cursor: text; }
+
+  @media (max-width: 760px) {
+    .games { grid-template-columns: 1fr; }
+    .game.wide canvas { aspect-ratio: 48 / 30; }
+    .stats { gap: 32px; }
+    .copy { padding-top: 4vh; }
+    .links { gap: 18px; }
+    section { padding-top: 80px; }
+    #ground { height: 150px; }
+  }
+  @media (max-width: 480px) {
+    .links li:not(:last-child) { display: none; }
+    form { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="world" id="hero">
+  <canvas id="world" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <nav>
+      <a class="logo px" href="#"><canvas id="logo" width="16" height="16"></canvas>pixelmoss</a>
+      <ul class="links px">
+        <li><a href="#games">Games</a></li>
+        <li><a href="#studio">Studio</a></li>
+        <li><a href="#letter">Newsletter</a></li>
+      </ul>
+    </nav>
+    <div class="copy">
+      <h1 class="sr-only">Pixelmoss: small worlds, made by hand</h1>
+    </div>
+    <div class="bar">
+      <a class="chip" href="#games" aria-label="Scroll down"><span class="arrow">&darr;</span></a>
+      <button class="chip" id="tod" type="button"><span class="sw"></span><span id="tod-label">Day</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="games">
+    <p class="label px">Games</p>
+    <div class="games">
+      <a class="game wide" href="#">
+        <canvas data-scene="moss"></canvas>
+        <span class="tag soon px">2027</span>
+        <h3 class="px">Moss Garden</h3>
+      </a>
+      <a class="game" href="#">
+        <canvas data-scene="tide"></canvas>
+        <span class="tag px">Out now</span>
+        <h3 class="px">Tidepool Post</h3>
+      </a>
+      <a class="game" href="#">
+        <canvas data-scene="lantern"></canvas>
+        <span class="tag px">Out now</span>
+        <h3 class="px">Lanternfall</h3>
+      </a>
+    </div>
+  </section>
+
+  <section id="studio">
+    <p class="label px">Studio</p>
+    <div class="studio">
+      <h2 class="px">Two people.<br><em>Zero crunch.</em></h2>
+      <ul class="stats">
+        <li><span class="n px">3</span><span class="k px">worlds</span></li>
+        <li><span class="n px">16</span><span class="k px">px tiles</span></li>
+        <li><span class="n px">2021</span><span class="k px">founded</span></li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer id="letter">
+  <canvas id="ground" aria-hidden="true"></canvas>
+  <div class="soil">
+    <div class="wrap">
+      <div class="foot">
+        <div class="sign">
+          <p class="px">One email per release.</p>
+          <form id="signup">
+            <input type="email" required placeholder="you@example.com" aria-label="Email address">
+            <button class="btn" type="submit">Join</button>
+          </form>
+          <p class="thanks px" id="thanks">You're on the list. Sprig says thanks.</p>
+        </div>
+        <ul class="out px">
+          <li><a href="#">itch.io</a></li>
+          <li><a href="#">Bluesky</a></li>
+          <li><a href="#">Press kit</a></li>
+        </ul>
+      </div>
+      <div class="fine px">
+        <span>&copy; 2026 Pixelmoss</span>
+        <a href="mailto:hello@pixelmoss.games">hello@pixelmoss.games</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ---------- shared helpers ----------
+  const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function rng(s) {
+    return () => {
+      s |= 0; s = s + 0x6D2B79F5 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function h1(i, s) { const v = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return v - Math.floor(v); }
+  function vnoise(x, s) { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f), a = h1(i, s); return a + (h1(i + 1, s) - a) * u; }
+  function fbm(x, s) { return vnoise(x, s) * 0.6 + vnoise(x * 2.1, s + 7) * 0.28 + vnoise(x * 4.3, s + 13) * 0.12; }
+  function paint(c, rows, ox, oy, pal) {
+    for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[y].length; x++) {
+      const col = pal[rows[y][x]];
+      if (col) { c.fillStyle = col; c.fillRect(ox + x, oy + y, 1, 1); }
+    }
+  }
+  function discOn(c, cx, cy, r, col) {
+    c.fillStyle = col;
+    for (let y = -r; y <= r; y++) {
+      const hw = Math.floor(Math.sqrt(Math.max(0, r * r + r * 0.8 - y * y)));
+      c.fillRect(cx - hw, cy + y, hw * 2 + 1, 1);
+    }
+  }
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------- Sprig ----------
+  const PAL = { k: "#1b1a17", g: "#7fae5a", l: "#b6d98a", w: "#fbfaf6", r: "#e98a7a" };
+  const SPRIG = [
+    ".......kk.......",
+    "......kllk......",
+    ".......kk.......",
+    ".......k........",
+    "....kkkkkkkk....",
+    "...kggggggggk...",
+    "..kggggggggggk..",
+    "..kgwwggggwwgk..",
+    "..kgwkggggwkgk..",
+    "..kggggggggggk..",
+    "..kgrrggggrrgk..",
+    "..kggggkkggggk..",
+    "...kggggggggk...",
+    "....kkkkkkkk....",
+    "....kk....kk....",
+    "................"
+  ];
+  const SPRIG_BLINK = SPRIG.slice();
+  SPRIG_BLINK[7] = "..kggggggggggk..";
+  SPRIG_BLINK[8] = "..kgkkggggkkgk..";
+  const FEET = ["....kk....kk....", ".....kk..kk.....", "...kk......kk..."];
+  function sprigFrame(step, blink) {
+    const r = (blink ? SPRIG_BLINK : SPRIG).slice();
+    r[14] = FEET[step];
+    return r;
+  }
+
+  const logo = document.getElementById("logo");
+  paint(logo.getContext("2d"), SPRIG, 0, 0, PAL);
+  document.getElementById("favicon").href = logo.toDataURL();
+
+  // ---------- the world ----------
+  const hero = document.getElementById("hero");
+  const cv = document.getElementById("world");
+  const ctx = cv.getContext("2d");
+  const box = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+
+  const PALS = {
+    day: {
+      sky: ["#bfe0ee", "#d3eaf0", "#e6f2ec", "#f5f1e1"],
+      sun: "#fff6dc", halo: "#fbe8b4", cloud: "#ffffff", cloudS: "#dfeaf0",
+      far: "#aac3d5", farS: "#9bb6ca", snow: "#f5f8fa", mid: "#8daea7",
+      water: "#7db1ca", waterHi: "#d2e8ef", hill: "#8cba69", tree: "#4e7e45", treeS: "#3b6537",
+      fore: "#6fa452", foreHi: "#9ccb6f", foreS: "#5e8f45",
+      wall: "#c9875e", roof: "#7a3e36", win: "#fff0b8", bird: "#3b4a54", smoke: "#f3f5f4"
+    },
+    night: {
+      sky: ["#1c1d3a", "#2a2b4d", "#363766", "#4a497b"],
+      sun: "#f4f1dc", halo: "#3d3c6a", cloud: "#3d3c6a", cloudS: "#2a2b4d",
+      far: "#2e2f5a", farS: "#262750", snow: "#8f8fb8", mid: "#22234a",
+      water: "#232450", waterHi: "#9a98c4", hill: "#1d2b3a", tree: "#15222c", treeS: "#101a22",
+      fore: "#1b2a30", foreHi: "#2c4040", foreS: "#142026",
+      wall: "#3b2f3d", roof: "#221a2a", win: "#ffcd66", bird: "#1c1d3a", smoke: "#4a497b"
+    }
+  };
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const mixA = (a, b, t) => { const A = hex(a), B = hex(b); return A.map((v, i) => Math.round(v + (B[i] - v) * t)); };
+  const css = (a) => `rgb(${a[0]},${a[1]},${a[2]})`;
+  const C = {};
+  let SKYA = [], palT = -1, skyDirty = true;
+  function palette(t) {
+    if (t === palT) return;
+    palT = t;
+    for (const k in PALS.day) {
+      if (k === "sky") SKYA = PALS.day.sky.map((c, i) => mixA(c, PALS.night.sky[i], t));
+      else C[k] = css(mixA(PALS.day[k], PALS.night[k], t));
+    }
+    skyDirty = true;
+  }
+
+  let PX, W, H, stars, clouds, birds, petals, flies;
+  const smoke = [];
+  const skyCv = document.createElement("canvas"), skyCtx = skyCv.getContext("2d");
+  function buildSky() {
+    skyCv.width = W; skyCv.height = H;
+    const img = skyCtx.createImageData(W, H), d = img.data, n = SKYA.length, span = H * 0.7;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const c = SKYA[clamp(Math.floor((y / span) * (n - 1) + BAYER[y & 3][x & 3] / 16), 0, n - 1)];
+      const o = (y * W + x) * 4;
+      d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+    }
+    skyCtx.putImageData(img, 0, 0);
+    skyDirty = false;
+  }
+
+  function disc(cx, cy, r, col, checker) {
+    ctx.fillStyle = col;
+    for (let y = -r; y <= r; y++) {
+      const hw = Math.floor(Math.sqrt(Math.max(0, r * r + r * 0.8 - y * y)));
+      if (!checker) { ctx.fillRect(cx - hw, cy + y, hw * 2 + 1, 1); continue; }
+      for (let x = -hw; x <= hw; x++) if ((x + y) & 1) ctx.fillRect(cx + x, cy + y, 1, 1);
+    }
+  }
+
+  function pine(x, base, h) {
+    for (let r = 0; r < h; r++) {
+      const y = base - 2 - h + r;
+      const half = Math.max(0, Math.floor(r / 2) - (r > 2 && r % 3 === 0 ? 1 : 0));
+      box(x - half, y, half + 1, 1, C.tree);
+      if (half) box(x + 1, y, half, 1, C.treeS);
+    }
+    box(x, base - 2, 1, 2, C.roof);
+  }
+
+  const CABIN = [
+    ".......cc..",
+    "....rrrcc..",
+    "...rrrrrr..",
+    "..rrrrrrrr.",
+    ".rrrrrrrrrr",
+    "..wwwwwwww.",
+    "..wwyywdww.",
+    "..wwyywdww.",
+    "..wwwwwdww."
+  ];
+  const CABIN_EVERY = 150;
+  const cabinAt = (k) => h1(k, 21) > 0.35;
+
+  function resize() {
+    const r = hero.getBoundingClientRect();
+    PX = Math.max(3, Math.round(r.width / 340));
+    W = Math.ceil(r.width / PX); H = Math.ceil(r.height / PX);
+    cv.width = W; cv.height = H;
+    skyDirty = true;
+    const rr = rng(42);
+    stars = Array.from({ length: Math.round((W * H) / 500) }, () => ({ x: Math.floor(rr() * W), y: Math.floor(rr() * H * 0.5), p: rr() * 6 }));
+    clouds = Array.from({ length: Math.max(4, Math.round(W / 55)) }, () => ({ x: rr() * W, y: H * (0.06 + rr() * 0.3), w: 12 + Math.floor(rr() * 24), s: 1 + rr() * 2.5, d: 0.2 + rr() * 0.4 }));
+    birds = Array.from({ length: 4 }, (_, i) => ({ x: rr() * 30 + i * 7, y: H * (0.16 + rr() * 0.08), s: 9 + rr() * 2 }));
+    petals = Array.from({ length: 18 }, () => ({ x: rr() * W, y: rr() * H, s: rr(), p: rr() * 6 }));
+    flies = Array.from({ length: 16 }, () => ({ x: rr() * W, y: H * (0.7 + rr() * 0.2), p: rr() * 6 }));
+  }
+
+  let time = 0, cam = 0, mx = 0, mxT = 0;
+  const hour = new Date().getHours();
+  let todT = hour >= 18 || hour < 6 ? 1 : 0, tod = todT;
+  let jumping = false, jy = 0, jv = 0;
+
+  function step(dt) {
+    time += dt;
+    cam += dt * 8;
+    mx += (mxT - mx) * Math.min(1, dt * 3);
+    tod += clamp(todT - tod, -dt * 0.9, dt * 0.9);
+    if (jumping) {
+      jv += 170 * dt; jy += jv * dt;
+      if (jy >= 0) { jy = 0; jv = 0; jumping = false; }
+    }
+    for (const p of petals) {
+      p.x -= (6 + p.s * 7) * dt + Math.sin(time + p.p) * dt * 3;
+      p.y += (2 + p.s * 3) * dt;
+      if (p.x < -2) p.x += W + 4;
+      if (p.y > H) p.y -= H * 0.95;
+    }
+    for (let i = smoke.length - 1; i >= 0; i--) {
+      const s = smoke[i];
+      s.life += dt; s.y -= dt * 4; s.wx += dt * (1.5 + Math.sin(s.life * 2));
+      if (s.life > 4) smoke.splice(i, 1);
+    }
+  }
+
+  function frame() {
+    palette(Math.round(tod * 40) / 40);
+    if (skyDirty) buildSky();
+    ctx.drawImage(skyCv, 0, 0);
+    const t = tod;
+    const sc = Math.min(scrollY, innerHeight) / PX;
+    const lay = (f) => ({ off: Math.floor(cam * f + mx * f * 14), dy: Math.round(sc * 0.45 * (1 - f)) });
+
+    // stars
+    const sa = clamp((t - 0.35) / 0.65, 0, 1);
+    if (sa > 0) {
+      ctx.globalAlpha = sa; ctx.fillStyle = "#fff6e0";
+      for (const s of stars) if (Math.sin(time * 1.7 + s.p * 3) > -0.4) ctx.fillRect(s.x, s.y, 1, 1);
+      ctx.globalAlpha = 1;
+    }
+
+    // sun
+    const R = Math.max(5, Math.round(H * 0.06));
+    const sx = Math.round(W * 0.74 - mx * 2), sy = Math.round(H * (0.22 - 0.06 * t)) + lay(0).dy;
+    disc(sx, sy, R + 4, C.halo, true);
+    disc(sx, sy, R + 1, C.halo, false);
+    disc(sx, sy, R, C.sun, false);
+
+    // clouds
+    for (const c of clouds) {
+      const span = W + 80;
+      const x = Math.round((((c.x - time * c.s - mx * c.d * 10) % span) + span) % span - 40);
+      const y = Math.round(c.y) + lay(0.05).dy, w = c.w;
+      box(x, y, w, 3, C.cloud);
+      box(x + Math.round(w * 0.12), y - 2, Math.round(w * 0.4), 2, C.cloud);
+      box(x + Math.round(w * 0.4), y - 4, Math.round(w * 0.32), 4, C.cloud);
+      box(x + 2, y + 3, w - 4, 1, C.cloudS);
+    }
+
+    // birds
+    ctx.fillStyle = C.bird;
+    birds.forEach((b, i) => {
+      const span = W + 60;
+      const x = Math.round((((b.x + time * b.s) % span) + span) % span - 30);
+      const y = Math.round(b.y + Math.sin(time * 0.8 + i) * 3 + (i % 2) * 4);
+      const up = Math.floor(time * 4 + i * 0.7) % 2;
+      ctx.fillRect(x - 1, y, 3, 1);
+      ctx.fillRect(x - 2, y + (up ? -1 : 1), 1, 1);
+      ctx.fillRect(x + 2, y + (up ? -1 : 1), 1, 1);
+    });
+
+    // far mountains
+    {
+      const { off, dy } = lay(0.08), base = Math.round(H * 0.6) + dy, amp = H * 0.24, snowLine = base - amp * 0.62;
+      const top = (x) => Math.round(base - amp * Math.pow(1 - Math.abs(fbm((x + off) * 0.018, 1) * 2 - 1), 1.6));
+      let cur = top(0);
+      for (let x = 0; x < W; x++) {
+        const nx = top(x + 1);
+        box(x, cur, 1, H - cur, cur - nx > 0 ? C.farS : C.far);
+        if (cur < snowLine) box(x, cur, 1, Math.round((snowLine - cur) * 0.45) + 1, C.snow);
+        cur = nx;
+      }
+    }
+
+    // mid mountains + lake
+    const ml = lay(0.2), lakeTop = Math.round(H * 0.64) + ml.dy;
+    for (let x = 0; x < W; x++) {
+      const tp = Math.round(lakeTop - H * 0.13 * (0.25 + fbm((x + ml.off) * 0.03, 4) * 0.75));
+      box(x, tp, 1, lakeTop - tp, C.mid);
+    }
+    box(0, lakeTop, W, H - lakeTop, C.water);
+    ctx.fillStyle = C.waterHi;
+    for (let y = lakeTop + 2; y < lakeTop + H * 0.12; y += 2) {
+      for (let c = Math.floor(ml.off / 10) - 1; c < (ml.off + W) / 10 + 1; c++) {
+        const h = h1(c * 31 + y, 3);
+        if (h > 0.55 && Math.sin(time * 1.3 + h * 20) > 0.2) ctx.fillRect(Math.round(c * 10 + h * 8 - ml.off), y, 2 + (Math.floor(h * 40) % 3), 1);
+      }
+    }
+    ctx.fillStyle = C.sun;
+    for (let i = 0, y = lakeTop + 1; y < lakeTop + H * 0.1; y += 2, i++) {
+      const w = Math.max(1, Math.round(R * 1.4 - i * 2)), j = (Math.floor(time * 3) + i) % 2;
+      ctx.fillRect(sx - Math.floor(w / 2) + j, y, w, 1);
+    }
+
+    // hill, trees, cabins, smoke
+    const hl = lay(0.45), hBase = Math.round(H * 0.77) + hl.dy, hAmp = H * 0.065;
+    const hillTop = (x) => Math.round(hBase - hAmp * fbm((x + hl.off) * 0.04, 7));
+    for (let x = 0; x < W; x++) { const tp = hillTop(x); box(x, tp, 1, H - tp, C.hill); }
+    const cell = 6;
+    for (let c = Math.floor(hl.off / cell) - 2; c <= Math.floor((hl.off + W) / cell) + 2; c++) {
+      if (h1(c, 9) < 0.5) continue;
+      const wx = c * cell + Math.floor(h1(c, 10) * 4), k = Math.floor(wx / CABIN_EVERY);
+      if (cabinAt(k) && Math.abs(wx - (k * CABIN_EVERY + 75)) < 13) continue;
+      const x = wx - hl.off;
+      pine(x, hillTop(x) + 1, 5 + Math.floor(h1(c, 11) * 6));
+    }
+    const cabPal = { r: C.roof, c: C.roof, w: C.wall, y: C.win, d: C.roof };
+    for (let k = Math.floor((hl.off - 20) / CABIN_EVERY); k <= Math.floor((hl.off + W + 20) / CABIN_EVERY); k++) {
+      if (!cabinAt(k)) continue;
+      const cx = k * CABIN_EVERY + 70 - hl.off;
+      let g = 0;
+      for (let i = 0; i < 11; i++) g = Math.max(g, hillTop(cx + i));
+      paint(ctx, CABIN, cx, g - 8, cabPal);
+      if (t > 0.3) { ctx.globalAlpha = (t - 0.3) * 0.5; box(cx + 3, g - 3, 4, 4, C.win); ctx.globalAlpha = 1; }
+      if (!reduce && Math.random() < 0.12) smoke.push({ wx: k * CABIN_EVERY + 77.5, y: g - 9, life: 0 });
+    }
+    ctx.fillStyle = C.smoke;
+    for (const s of smoke) {
+      ctx.globalAlpha = 0.85 * (1 - s.life / 4);
+      const sz = s.life > 2 ? 2 : 1;
+      ctx.fillRect(Math.round(s.wx - hl.off), Math.round(s.y), sz, sz);
+    }
+    ctx.globalAlpha = 1;
+
+    // foreground meadow
+    const fl = lay(1), fBase = Math.round(H * 0.9) + fl.dy, fAmp = H * 0.035;
+    const foreTop = (x) => Math.round(fBase - fAmp * fbm((x + fl.off) * 0.05, 12));
+    const FLOWERS = ["#e98a7a", "#fbfaf6", "#f2c66d"];
+    for (let x = 0; x < W; x++) {
+      const tp = foreTop(x), wx = x + fl.off;
+      box(x, tp, 1, H - tp, C.fore);
+      box(x, tp, 1, 1, C.foreHi);
+      if (h1(wx, 14) > 0.8) box(x, tp + 3 + Math.floor(h1(wx, 15) * Math.max(1, H - tp - 4)), 1, 1, C.foreS);
+      if (h1(wx, 5) > 0.5) {
+        const g = 1 + Math.floor(h1(wx, 6) * 3), sway = Math.sin(time * 2.2 + wx * 0.35) > 0.55 ? 1 : 0;
+        if (g > 1) box(x, tp - g + 1, 1, g - 1, C.fore);
+        box(x + sway, tp - g, 1, 1, C.foreHi);
+      }
+      if (h1(wx, 8) > 0.97) {
+        box(x, tp - 2, 1, 2, C.foreS);
+        box(x, tp - 3, 1, 1, FLOWERS[Math.floor(h1(wx, 16) * 3)]);
+      }
+    }
+
+    // Sprig walks the meadow
+    const spx = Math.round(W * 0.2 + Math.sin(time * 0.3) * W * 0.03);
+    const ground = foreTop(spx + 8);
+    const walk = Math.floor(time * 7) % 2;
+    ctx.globalAlpha = jumping ? 0.12 : 0.2;
+    box(spx + 3, ground, 10, 1, "#1b1a17");
+    ctx.globalAlpha = 1;
+    paint(ctx, sprigFrame(jumping ? 2 : walk, time % 3.6 < 0.14), spx, ground - 15 + Math.round(jy) - (jumping ? 0 : walk), PAL);
+
+    // petals by day, fireflies by night
+    if (t < 1) {
+      ctx.globalAlpha = 1 - t;
+      petals.forEach((p, i) => { box(Math.round(p.x), Math.round(p.y), 1, 1, i % 3 ? "#f6c1c7" : "#fbfaf6"); });
+    }
+    if (t > 0) {
+      for (const f of flies) {
+        if (Math.sin(time * 3 + f.p * 5) < 0) continue;
+        const x = Math.round(f.x + Math.sin(time * 0.5 + f.p) * 6), y = Math.round(f.y + Math.cos(time * 0.7 + f.p) * 4);
+        ctx.globalAlpha = t * 0.35;
+        box(x - 1, y, 3, 1, "#fff3a8"); box(x, y - 1, 1, 3, "#fff3a8");
+        ctx.globalAlpha = t;
+        box(x, y, 1, 1, "#fff8cc");
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- game windows (animated, 48x30) ----------
+  const TW = 48, TH = 30;
+  const rect = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+  const dot = (c, x, y, col) => rect(c, x, y, 1, 1, col);
+  function sky(c, h, cols) {
+    for (let y = 0; y < h; y++) for (let x = 0; x < TW; x++) {
+      const v = (y / h) * cols.length + (BAYER[y % 4][x % 4] / 16 - 0.5);
+      dot(c, x, y, cols[clamp(Math.floor(v), 0, cols.length - 1)]);
+    }
+  }
+  function hills(c, base, amp, freq, phase, col) {
+    c.fillStyle = col;
+    for (let x = 0; x < TW; x++) {
+      const top = Math.round(base + Math.sin(x * freq + phase) * amp + Math.sin(x * freq * 2.3 + phase * 1.7) * amp * 0.4);
+      c.fillRect(x, top, 1, TH - top);
+    }
+  }
+  const wrapX = (x, span) => ((x % span) + span) % span;
+
+  const tideR = (() => { const r = rng(7); return Array.from({ length: 30 }, () => ({ x: r() * TW, y: 19 + Math.floor(r() * 9), w: 2 + Math.floor(r() * 3), s: 0.6 + r() })); })();
+  const lanternR = (() => { const r = rng(3); return Array.from({ length: 22 }, () => ({ x: Math.floor(r() * TW), y: Math.floor(r() * 15), p: r() * 6, b: r() > 0.7 })); })();
+  const mossR = (() => { const r = rng(11); return Array.from({ length: 18 }, (_, i) => ({ x: Math.floor(r() * TW), y: 22 + Math.floor(r() * 7), c: i % 3, p: r() * 6 })); })();
+
+  const SCENES = {
+    tide(c, t) {
+      sky(c, 18, ["#f8e2bd", "#f5c9a0", "#efa585"]);
+      discOn(c, 34, 16, 5, "#fff0cf");
+      rect(c, 0, 18, TW, 12, "#4f86a8");
+      for (const w of tideR) rect(c, Math.round(wrapX(w.x + t * w.s, TW + 6) - 3), w.y, w.w, 1, "#8fbcd4");
+      for (let y = 19, w = 8, i = 0; y < 27; y += 2, w -= 2, i++) rect(c, 34 - w / 2 + ((Math.floor(t * 3) + i) % 2), y, w, 1, "#f7d9a8");
+      hills(c, 26.5, 1.5, 0.15, 2, "#e8cf9e");
+      const bx = Math.round(8 + Math.sin(t * 0.25) * 3), by = Math.floor(t * 1.4) % 2;
+      rect(c, bx, 17 + by, 7, 1, "#3b2f2a"); rect(c, bx + 1, 18 + by, 5, 1, "#3b2f2a");
+      rect(c, bx + 3, 10 + by, 1, 7, "#3b2f2a");
+      rect(c, bx + 4, 11 + by, 1, 5, "#fbfaf6"); rect(c, bx + 5, 12 + by, 1, 4, "#fbfaf6"); rect(c, bx + 6, 14 + by, 1, 2, "#fbfaf6");
+      const gx = Math.round(wrapX(t * 4, TW + 10) - 5), gy = 6 + Math.round(Math.sin(t) * 1.5), up = Math.floor(t * 3) % 2;
+      rect(c, gx, gy, 3, 1, "#fbfaf6"); dot(c, gx - 1, gy + (up ? -1 : 1), "#fbfaf6"); dot(c, gx + 3, gy + (up ? -1 : 1), "#fbfaf6");
+    },
+    lantern(c, t) {
+      sky(c, TH, ["#2a2b4d", "#363766", "#4a497b"]);
+      for (const s of lanternR) if (Math.sin(t * 2 + s.p * 3) > -0.3) dot(c, s.x, s.y, s.b ? "#fff6d8" : "#9a98c4");
+      hills(c, 17, 3, 0.18, 1, "#22234a");
+      hills(c, 23, 2, 0.3, 4, "#15162f");
+      const ly = Math.round(Math.sin(t * 1.1) * 1.5), fl = Math.floor(t * 5) % 3 === 0;
+      discOn(c, 30, 13 + ly, fl ? 6 : 5, "#3d3c6a");
+      discOn(c, 30, 13 + ly, 3, "#5e5577");
+      dot(c, 30, 10 + ly, "#c9b48a");
+      rect(c, 29, 11 + ly, 3, 4, "#f2c66d");
+      dot(c, 30, 12 + ly, "#fff1c4");
+      rect(c, 29, 15 + ly, 3, 1, "#8a6a3a");
+    },
+    moss(c, t) {
+      sky(c, TH, ["#d6ebf1", "#e5f1ea", "#f1f5e4"]);
+      const a = Math.round(wrapX(8 + t * 0.8, TW + 14) - 7), b = Math.round(wrapX(30 + t * 0.5, TW + 14) - 7);
+      rect(c, a, 6, 9, 2, "#fbfdfb"); rect(c, a + 2, 5, 4, 1, "#fbfdfb");
+      rect(c, b + 1, 4, 6, 1, "#fbfdfb"); rect(c, b, 5, 9, 1, "#fbfdfb");
+      hills(c, 15, 2, 0.12, 0, "#b2d48f");
+      rect(c, 36, 12, 1, 6, "#5a4632");
+      discOn(c, 36, 10, 3, "#5e8f45");
+      hills(c, 20, 2, 0.2, 2, "#7fae5a");
+      hills(c, 25, 1, 0.25, 5, "#5e8f45");
+      const cols = ["#e98a7a", "#fbfaf6", "#f2c66d"];
+      for (const f of mossR) dot(c, f.x + (Math.sin(t * 2 + f.p) > 0.6 ? 1 : 0), f.y, cols[f.c]);
+      const fx = Math.round(18 + Math.sin(t * 0.7) * 8), fy = Math.round(17 + Math.sin(t * 1.9) * 2), w = Math.floor(t * 6) % 2;
+      dot(c, fx, fy, "#e2553f");
+      if (w) { dot(c, fx - 1, fy - 1, "#e2553f"); dot(c, fx + 1, fy - 1, "#e2553f"); }
+      else { dot(c, fx - 1, fy, "#e2553f"); dot(c, fx + 1, fy, "#e2553f"); }
+    }
+  };
+  const thumbs = [...document.querySelectorAll("canvas[data-scene]")].map((c) => {
+    c.width = TW; c.height = TH;
+    return { ctx: c.getContext("2d"), fn: SCENES[c.dataset.scene] };
+  });
+  const drawThumbs = (t) => thumbs.forEach((th) => th.fn(th.ctx, t));
+
+  // ---------- footer ground: Sprig asleep by a fire ----------
+  const gcv = document.getElementById("ground"), gx = gcv.getContext("2d");
+  let GW = 0, GH = 0;
+  const SOIL = "#ece4d0";
+  const FIRE = [
+    ["..o..", ".ooo.", ".oyo.", "ooyoo", ".oyo."],
+    [".o...", "..oo.", ".oyo.", "ooyyo", ".oyo."],
+    ["...o.", ".oo..", ".oyo.", "oyyoo", ".oyo."]
+  ];
+  const Z = ["kkk", ".k.", "kkk"];
+  const SLEEP = sprigFrame(0, true);
+  function sizeGround() {
+    const r = gcv.getBoundingClientRect();
+    const p = Math.max(3, Math.round(r.width / 340));
+    GW = Math.ceil(r.width / p); GH = Math.ceil(r.height / p);
+    gcv.width = GW; gcv.height = GH;
+  }
+  function drawGround(t) {
+    const g = gx;
+    g.clearRect(0, 0, GW, GH);
+    const top = (x) => Math.round(GH - 14 - 4 * fbm(x * 0.03, 30));
+    for (let x = 0; x < GW; x++) {
+      const tp = top(x);
+      rect(g, x, tp, 1, GH - tp, SOIL);
+      rect(g, x, tp, 1, 3, "#7fae5a");
+      rect(g, x, tp, 1, 1, "#9ccb6f");
+      if (h1(x, 41) > 0.82) dot(g, x, tp + 3, "#7fae5a");
+      if (h1(x, 42) > 0.93) dot(g, x, tp + 6 + Math.floor(h1(x, 43) * 6), "#d8cdb2");
+      if (h1(x, 5) > 0.55) {
+        const hgt = 1 + Math.floor(h1(x, 6) * 2), sway = Math.sin(t * 2 + x * 0.4) > 0.6 ? 1 : 0;
+        if (hgt > 1) dot(g, x, tp - 1, "#7fae5a");
+        dot(g, x + sway, tp - hgt, "#9ccb6f");
+      }
+      if (h1(x, 8) > 0.975) { rect(g, x, tp - 2, 1, 2, "#5e8f45"); dot(g, x, tp - 3, ["#e98a7a", "#fbfaf6", "#f2c66d"][Math.floor(h1(x, 9) * 3)]); }
+    }
+    // tree
+    const tx = Math.round(GW * 0.74), tb = top(tx);
+    rect(g, tx, tb - 14, 2, 14, "#6b4f36");
+    rect(g, tx + 2, tb - 9, 2, 1, "#6b4f36");
+    discOn(g, tx + 1, tb - 21, 8, "#5e8f45");
+    discOn(g, tx - 4, tb - 17, 5, "#6f9e52");
+    discOn(g, tx + 6, tb - 18, 5, "#6f9e52");
+    discOn(g, tx + 3, tb - 24, 3, "#8cba69");
+    // Sprig asleep, breathing
+    const sx = tx - 19, sg = top(sx + 8), br = Math.floor(t * 0.8) % 2;
+    g.globalAlpha = 0.15; rect(g, sx + 3, sg, 10, 1, "#1b1a17"); g.globalAlpha = 1;
+    paint(g, SLEEP.slice(br), sx, sg - 15 + br, PAL);
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * 0.35 + i / 3) % 1;
+      g.globalAlpha = 1 - ph;
+      paint(g, Z, Math.round(sx + 13 + ph * 6), Math.round(sg - 16 - ph * 12), { k: "#77715f" });
+    }
+    g.globalAlpha = 1;
+    // campfire
+    const fx = sx - 12, fg = top(fx);
+    paint(g, FIRE[Math.floor(t * 8) % 3], fx - 2, fg - 7, { o: "#e2553f", y: "#f2c66d" });
+    rect(g, fx - 3, fg - 2, 7, 1, "#8a6a3a");
+    rect(g, fx - 2, fg - 1, 5, 1, "#6b4f36");
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * 0.6 + i / 3) % 1;
+      if (ph < 0.8) dot(g, Math.round(fx + Math.sin((t + i) * 3) * 2), Math.round(fg - 8 - ph * 10), "#f2c66d");
+    }
+  }
+
+  // ---------- loops + interaction ----------
+  const seen = new Map();
+  const io = new IntersectionObserver((es) => es.forEach((e) => seen.set(e.target, e.isIntersecting)));
+  const gamesEl = document.getElementById("games"), footEl = document.getElementById("letter");
+  [hero, gamesEl, footEl].forEach((el) => io.observe(el));
+
+  let last = performance.now() / 1000, slowAcc = 0, slowT = 0;
+  function loop(now) {
+    requestAnimationFrame(loop);
+    now /= 1000;
+    const dt = Math.min(0.1, now - last);
+    if (dt < 1 / 30) return;
+    last = now;
+    if (document.hidden) return;
+    if (seen.get(hero) !== false) { step(dt); frame(); }
+    slowAcc += dt; slowT += dt;
+    if (slowAcc >= 1 / 10) {
+      slowAcc = 0;
+      if (seen.get(gamesEl)) drawThumbs(slowT);
+      if (seen.get(footEl)) drawGround(slowT);
+    }
+  }
+
+  const todLabel = document.getElementById("tod-label");
+  function syncTod() {
+    hero.classList.toggle("night", todT === 1);
+    todLabel.textContent = todT ? "Night" : "Day";
+  }
+  document.getElementById("tod").addEventListener("click", () => {
+    todT = 1 - todT;
+    syncTod();
+    if (reduce) { tod = todT; frame(); }
+  });
+  syncTod();
+
+  addEventListener("pointermove", (e) => { mxT = (e.clientX / innerWidth) * 2 - 1; });
+  hero.addEventListener("click", (e) => {
+    if (e.target.closest("a, button") || jumping) return;
+    jumping = true; jv = -78;
+  });
+  addEventListener("resize", () => { resize(); frame(); sizeGround(); drawGround(slowT); });
+
+  resize();
+  frame();
+  drawThumbs(0);
+  sizeGround();
+  drawGround(0);
+  if (!reduce) requestAnimationFrame(loop);
+
+  // ---------- newsletter ----------
+  document.getElementById("signup").addEventListener("submit", (e) => {
+    e.preventDefault();
+    e.target.style.display = "none";
+    document.getElementById("thanks").style.display = "block";
+  });
+</script>
+</body>
+</html>
